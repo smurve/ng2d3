@@ -1,8 +1,5 @@
 import {Component} from '@angular/core';
 
-import{MyGraphsComponent} from './mygraphs.component';
-import{MyMenuComponent} from './menu.component';
-
 @Component({
     selector: 'my-app',
     templateUrl: 'app/app.component.html',
