@@ -1,0 +1,113 @@
+body 
+{
+    text-align: left;
+	font-size : 15px; 
+	font-family : Arial, Helvetica, Geneva, sans-serif; 
+    margin: 2%;
+}
+
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+
+.g1 {
+  fill: none;
+  stroke: limegreen;
+  stroke-width: 1.5px;
+  clip-path: url(#clip);
+}
+
+
+.g2 {
+  fill: none;
+  stroke: orangered;
+  stroke-width: 1.5px;
+  clip-path: url(#clip);
+}
+
+
+.gs1 {
+  fill: none;
+  stroke: limegreen;
+  stroke-width: 1.5px;
+}
+
+
+.gs2 {
+  fill: none;
+  stroke: orangered;
+  stroke-width: 1.5px;
+}
+
+.axis--y1 {
+  fill: none;
+  stroke: limegreen;
+  /*stroke-width: 1.5px;*/
+}
+
+.axis--y2 {
+  fill: none;
+  stroke: orangered;
+  /*stroke-width: 1.5px;*/
+}
+
+.largeText
+{
+  font-size:20px;
+  font-weight:bold;
+}
+
+.rounded
+{
+  /*max-width:960px;*/
+  padding: 16px;
+  border: 2px solid #dddddd;
+  -moz-border-radius: 6px;
+  -webkit-border-radius: 6px;
+  -o-border-radius: 6px;
+  border-radius:6px;
+}
+
+.a2p-h1
+{
+  font-size:15px; 
+  font-weight:bold;
+}
+
+.a2p-content
+{
+  padding:4px;
+}
+
+.a2p-pad-bottom
+{
+	padding-bottom:15px;
+}
+
+.a2p-pad-top
+{
+	margin-top:15px;
+}
+
+.a2p-pad-left
+{
+  margin-left:10px;
+}
+
+
+
+.title 
+{
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+.zoom {
+  cursor: move;
+  fill: none;
+  pointer-events: all;
+}
