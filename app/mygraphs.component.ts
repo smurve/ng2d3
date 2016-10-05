@@ -20,13 +20,27 @@ export class MyGraphsComponent implements DoCheck, OnInit {
 
     public selectedStats: Array<boolean> = [false, false]; // stats selected to display
     private oldStats: Array<boolean> = [false, false];     // to check if there were changes
-    private line: any[];
+    private data: any[];
     private yAxis: any[];
 
-    // params
-    private svg_width: number = 1400;
-    private svg_height: number = 900;
+    // layout params
+    private svg_width = 1400;
+    private svg_height = 900;
 
+    private width_per_y_axis = 40;
+    private margin_top = 20;
+    private margin_right = 20;
+    private numGraphs = this.selectedStats.length;
+    private margin_left = 40 + this.width_per_y_axis * this.numGraphs;
+
+    private width = +this.svg_width - this.margin_left - this.margin_right;
+    private height_focus = this.svg_height / 4;
+    private height_context = this.svg_height / 16;
+
+    private ratio = this.height_context / this.height_focus;
+
+
+    private numContextGraphs = 2;
 
     constructor(elementRef: ElementRef, gService: GraphDataService) {
         let d3: any = D3;  // to shut stupid typescript up about type checking
@@ -36,110 +50,41 @@ export class MyGraphsComponent implements DoCheck, OnInit {
         this.oldStats = this.selectedStats;
     }    // end of constructor
 
-    // TODO: make it so that it redraws the graphs when selectedStats changes
+
     ngOnInit() {
+
+        let that = this;
+
         let d3: any = D3;
-        this.graphs[0] = this.gService.getData();
-
-        let numGraphs: number = this.selectedStats.length;
-
-        let selected: any[] = this.selectedStats;
-
-
+        this.graphs[0] = that.gService.getData();
 
         // d3 code "inspired" by http://bl.ocks.org/mbostock/34f08d5e11952a80609169b7917d4172
         // create the canvas that will contain the graph
         let svg: any = this.canvas
             .append('svg')
-            .attr('width', this.svg_width)
-            .attr('height', this.svg_height);
+            .attr('width', that.svg_width)
+            .attr('height', that.svg_height);
 
-
-        // layout variables
-        let axisWidth: number = 40;
-        let margin_top: number = 20,
-            margin_right: number = 20,
-            margin_left: number = 40 + axisWidth * numGraphs;
-
-        let width: number = + this.svg_width - margin_left - margin_right,
-            height_focus: number = this.svg_height / 4,
-            height_context: number = this.svg_height / 16;
-
-        let ratio: number = height_context / (height_focus);
-
-
-
-
-        // linear scale for the x
-        let x: any = d3.scaleLinear().range([0, width]),
-            x2: any = d3.scaleLinear().range([0, width]);
-
-
-        // linear scale for the y
-        let y: any[] = [
-            d3.scaleLinear().range([height_focus, 0]),
-            d3.scaleLinear().range([height_focus, 0])];
-
-        // define the 3 axes
-        let xAxis: any = d3.axisBottom(x)
-        let yAxis: any[] = [d3.axisLeft(y[0]),
-            d3.axisLeft(y[1])];
-        this.yAxis = yAxis;
-
-        let brush: any = d3.brushX()        // define a brush on the X axis
-            .extent([[0, 0], [width, height_context * numGraphs]]) // the area that the brush may span
-            .on("brush end", brushed);           // listen to events (move and mouseup on the brush) and call the function brushed
-
-
-        let zoom: any = d3.zoom()           // define a zoom
-            .scaleExtent([1, Infinity])     // which can zoom up to infinity
-            .translateExtent([[0, 0], [width, height_focus * 2]])     // region that can be zoomed
-            .extent([[0, 0], [width, height_focus * 2]])      // what's the difference from the one above?
-            .on("zoom", zoomed);            // listen to the event zoom and call zoomed
-
-
-        // functions to retrieve data stats
-        // TODO: find a way to import data in a loop so that the number/name of the stats can be variable
         let stats: any[] = [
-            d => d.time,
             d => d.stat1,
             d => d.stat2
         ];
-        // functions to refer to the data stats when drawing the lines
-        // TODO: find a way to import data in a loop so that the number/name of the stats can be variable
-        let statsLine: any[] = [
-            d => x(d.time),
-            d => y[0](d.stat1),
-            d => y[1](d.stat2)
-        ];
-
-        // typescript version
-        let resize: (fn: any) => any =
-            function (fn: any): any {
-                return (x)=>fn(x) * ratio
-            };
 
 
-        // big graphs
-        let line: any[] = [
-            d3.line()
-                .x(statsLine[0])
-                .y(statsLine[1]),
+        let x: any = d3.scaleLinear().range([0, that.width]);
+        x.domain(d3.extent(this.graphs[0], (d:GraphData) => d.time));
+        let xAxis: any = d3.axisBottom(x);
+        let x_range: any = (d: GraphData) => x(d.time);
 
-            d3.line()
-                .x(statsLine[0])
-                .y(statsLine[2])
-        ];
-        this.line = line;
 
-        // small graphs
-        let line2: any[] = [
-            d3.line()
-                .x(statsLine[0])
-                .y(resize(statsLine[1])),
-            d3.line()
-                .x(statsLine[0])
-                .y(resize(statsLine[2]))
+        // linear scale for the y axis
+        let y: any[] = [
+            d3.scaleLinear().range([that.height_focus, 0]),
+            d3.scaleLinear().range([that.height_focus, 0])];
+
+        let y_range: any[] = [
+            (d: GraphData) => y[0](d.stat1),
+            (d: GraphData) => y[1](d.stat2)
         ];
 
 
@@ -148,70 +93,105 @@ export class MyGraphsComponent implements DoCheck, OnInit {
         svg.append("defs").append("clipPath")
             .attr("id", "clip")
             .append("rect")
-            .attr("width", width)
-            .attr("height", height_focus);
-
-        // group with the big graph
-        let focus: any = svg.append("g")
-            .attr("class", "focus")
-            .attr("transform", "translate(" + margin_left + "," + margin_top + ")");
-
-        // group with the small graph
-        let tempHeight2: number = height_focus + margin_top * 3;
-        let context: any = svg.append("g")
-            .attr("class", "context")
-            .attr("transform", "translate(" + margin_left + "," + tempHeight2 + ")");
-
+            .attr("width", that.width)
+            .attr("height", that.height_focus);
 
         // set domain range for x axes (same for all graphs)
-        x.domain(d3.extent(this.graphs[0], stats[0]));
+        let x2: any = d3.scaleLinear().range([0, that.width]);
         x2.domain(x.domain());
 
-        // draw X axis for big graphs
+        that.data = [
+            d3.line().x(x_range).y(y_range[0]),
+            d3.line().x(x_range).y(y_range[1])
+        ];
+
+
+        /***************************************************************************************
+         *                 DRAW THE FOCUS GRAPH
+         ***************************************************************************************/
+        that.yAxis = [
+            d3.axisLeft(y[0]),
+            d3.axisLeft(y[1])];
+
+        // group
+        let focus: any = svg.append("g")
+            .attr("class", "focus")
+            .attr("transform", "translate(" + that.margin_left + "," + that.margin_top + ")");
+
         focus.append("g")
             .attr("class", "axis axis--x")
-            .attr("transform", "translate(0," + height_focus / 2 + ")")
+            .attr("transform", "translate(0," + that.height_focus / 2 + ")")
             .call(xAxis);
 
-        for (let i: number = 1; i <= numGraphs; i++) {
 
-            // draw big graph
+        for (let i: number = 1; i <= that.numGraphs; i++) {
+
             focus.append("path")
-                .datum(this.graphs[0])
+                .datum(that.graphs[0])
                 .attr("class", "g" + i);
-            //.attr("d", line[i-1]);
 
             // set domain range for y axes
-            y[i - 1].domain(d3.extent(this.graphs[0], stats[i]));
+            y[i - 1].domain(d3.extent(that.graphs[0], stats[i - 1]));
             // draw Y axis for big graph
             focus.append("g")
                 .attr("class", "axis axis--y" + i)
-                .attr("transform", "translate(" + -axisWidth * (i - 1) + ",0)");
-            //.call(yAxis[i-1]);
+                .attr("transform", "translate(" + -that.width_per_y_axis * (i - 1) + ",0)");
 
-            if (!this.selectedStats[i - 1]) continue;        // skip unselected stats
+            if (!that.selectedStats[i - 1]) continue;        // skip unselected stats
 
-            focus.select(".g" + i).attr("d", line[i - 1]);  // draw big graph
-            focus.select(".axis--y" + i).call(yAxis[i - 1]);  // draw y axis for big graph
+            focus.select(".g" + i).attr("d", that.data[i - 1]);
+            focus.select(".axis--y" + i).call(that.yAxis[i - 1]);  // draw y axis
         }
 
 
-        for (let i: number = 1; i <= numGraphs; i++) {
+        /***************************************************************************************
+         *                 DRAW THE CONTEXT GRAPH
+         ***************************************************************************************/
+        let resize: (fn: any) => any =
+                function (fn: any): any {
+                    return (x)=>fn(x) * that.ratio
+                };
+
+        let context_data: any[] = [
+            d3.line().x(x_range).y(resize(y_range[0])),
+            d3.line().x(x_range).y(resize(y_range[1]))
+        ];
+
+        // group with the small graph
+        let tempHeight2: number = that.height_focus + that.margin_top * 3;
+        let context: any = svg.append("g")
+            .attr("class", "context")
+            .attr("transform", "translate(" + that.margin_left + "," + tempHeight2 + ")");
+
+        for (let i: number = 1; i <= that.numContextGraphs; i++) {
             //if(!this.selectedStats[i-1]) continue;        // skip unselected stats
             // draw small graph
             context.append("path")
-                .datum(this.graphs[0])
+                .datum(that.graphs[0])
                 .attr("class", "gs" + i)
-                .attr("transform", "translate( 0," + height_context * (i - 1) + ")")
-                .attr("d", line2[i - 1]);
+                .attr("transform", "translate( 0," + that.height_context * (i - 1) + ")")
+                .attr("d", context_data[i - 1]);
 
             // draw X axis for small graph
             context.append("g")
                 .attr("class", "axis axis--x" + i)
-                .attr("transform", "translate(0," + height_context * (i - 1 / 2) + ")")
+                .attr("transform", "translate(0," + that.height_context * (i - 1 / 2) + ")")
                 .call(xAxis);
         }
 
+
+        /***************************************************************************************
+         *                 ZOOM AND BRUSH
+         ***************************************************************************************/
+        let brush: any = d3.brushX()        // define a brush on the X axis
+            .extent([[0, 0], [that.width, this.height_context * that.numContextGraphs]]) // the area that the brush may span
+            .on("brush end", brushed);           // listen to events (move and mouseup on the brush) and call the function brushed
+
+        let zoom: any = d3.zoom()           // define a zoom
+            .scaleExtent([1, Infinity])     // which can zoom up to infinity
+            .translateExtent([[0, 0], [that.width, that.height_focus * 2]])     // region that can be zoomed
+            .extent([[0, 0], [that.width, that.height_focus * 2]])      // what's the difference from the one above?
+            .on("zoom", zoomed);            // listen to the event zoom and call zoomed
 
         // attach brushable area to the small graph
         context.append("g")
@@ -222,11 +202,10 @@ export class MyGraphsComponent implements DoCheck, OnInit {
         // attach zoomable area to the big graph
         svg.append("rect")
             .attr("class", "zoom")
-            .attr("width", width)
-            .attr("height", height_focus)
-            .attr("transform", "translate(" + margin_left + "," + margin_top + ")")
+            .attr("width", that.width)
+            .attr("height", that.height_focus)
+            .attr("transform", "translate(" + that.margin_left + "," + that.margin_top + ")")
             .call(zoom);
-
 
         function zoomed() {
             if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush") return; // ignore zoom-by-brush
@@ -236,9 +215,9 @@ export class MyGraphsComponent implements DoCheck, OnInit {
             // redraw graphs
             focus.select(".axis--x").call(xAxis); // redraw zoomed x axis
             x.domain(t.rescaleX(x2).domain());    // set new range for the x variable
-            for (let i = 1; i <= numGraphs; i++) {
-                if (!selected[i - 1]) continue;        // skip unselected stats
-                focus.select(".g" + i).attr("d", line[i - 1]);   // redraw zoomed graph
+            for (let i = 1; i <= that.numGraphs; i++) {
+                if (!that.selectedStats[i - 1]) continue;        // skip unselected stats
+                focus.select(".g" + i).attr("d", that.data[i - 1]);   // redraw zoomed graph
 
             }
             context.select(".brush").call(brush.move, x.range().map(t.invertX, t));    // resizes the brush in the lower part
@@ -257,15 +236,15 @@ export class MyGraphsComponent implements DoCheck, OnInit {
 
             x.domain(s.map(x2.invert, x2)); // redefine domain of big graph according to the new brush range
             // reload the graph lines
-            for (let i: number = 1; i <= numGraphs; i++) {
-                if (!selected[i - 1]) continue;        // skip unselected stats
-                focus.select(".g" + i).attr("d", line[i - 1]);
+            for (let i: number = 1; i <= that.numGraphs; i++) {
+                if (!that.selectedStats[i - 1]) continue;        // skip unselected stats
+                focus.select(".g" + i).attr("d", that.data[i - 1]);
             }
             focus.select(".axis--x").call(xAxis);  // reload the x axis
 
             // call the zoom function in case the brush was resized
             svg.select(".zoom").call(zoom.transform, d3.zoomIdentity
-                .scale(width / (s[1] - s[0]))
+                .scale(that.width / (s[1] - s[0]))
                 .translate(-s[0], 0));
 
         }
@@ -288,7 +267,7 @@ export class MyGraphsComponent implements DoCheck, OnInit {
         for (let i: number = 1; i <= this.selectedStats.length; i++) {
             if (!this.oldStats[i - 1] && this.selectedStats[i - 1]) {    // stat selected
                 this.oldStats[i - 1] = this.selectedStats[i - 1];     // update selected stats
-                d3.select(".g" + i).attr("d", this.line[i - 1]);    // draw big graph
+                d3.select(".g" + i).attr("d", this.data[i - 1]);    // draw big graph
                 d3.select(".axis--y" + i).call(this.yAxis[i - 1]);  // draw y axis for big graph
                 // TODO: delete/draw the graph
             }

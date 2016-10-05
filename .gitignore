@@ -12,6 +12,7 @@
 
 node_modules
 *.js
+*.map
 npm-debug.log
 
 # Sensitive or high-churn files:
