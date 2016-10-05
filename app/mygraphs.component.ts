@@ -17,8 +17,6 @@ export class MyGraphsComponent implements OnInit {
 
     private graphs: GraphData[][] = [];         // the actual data
 
-    private data: any[];
-
     // layout params
     private svg_width = 1400;
     private svg_height = 900;
@@ -64,20 +62,6 @@ export class MyGraphsComponent implements OnInit {
             .attr("width", that.width)
             .attr("height", that.height_focus);
 
-
-
-
-
-        // linear scale for the y axis
-        let y: any[] = [
-            d3.scaleLinear().range([that.height_focus, 0]),
-            d3.scaleLinear().range([that.height_focus, 0])];
-
-        let y_range: any[] = [
-            (d: GraphData) => y[0](d.v),
-            (d: GraphData) => y[1](d.v)
-        ];
-
         let x: any = d3.scaleLinear().range([0, that.width]);
         x.domain(d3.extent(this.graphs[0], (d:GraphData) => d.t));
         let xAxis: any = d3.axisBottom(x);
@@ -87,17 +71,9 @@ export class MyGraphsComponent implements OnInit {
         let x2: any = d3.scaleLinear().range([0, that.width]);
         x2.domain(x.domain());
 
-        that.data = [
-            d3.line().x(x_range).y(y_range[0]),
-            d3.line().x(x_range).y(y_range[1])
-        ];
-
-
         /***************************************************************************************
          *                 DRAW THE FOCUS GRAPH
          ***************************************************************************************/
-
-        // group
         let focus: any = svg.append("g")
             .attr("class", "focus")
             .attr("transform", "translate(" + that.margin_left + "," + that.margin_top + ")");
@@ -107,24 +83,24 @@ export class MyGraphsComponent implements OnInit {
             .attr("transform", "translate(0," + that.height_focus / 2 + ")")
             .call(xAxis);
 
-
         for (let i: number = 1; i <= that.graphs.length; i++) {
 
             focus.append("path")
                 .datum(that.graphs[i-1])
                 .attr("class", "g" + i);
 
-            // set domain range for y axes
-            y[i - 1].domain(d3.extent(that.graphs[i-1], (d:GraphData) => d.v));
-            // draw Y axis for big graph
+            let yf =  d3.scaleLinear().range([that.height_focus, 0]);
+            yf.domain(d3.extent(that.graphs[i-1], (d:GraphData) => d.v));
+            let yf_range = (d: GraphData) => yf(d.v);
+            let data_f = d3.line().x(x_range).y(yf_range);
+
             focus.append("g")
                 .attr("class", "axis axis--y" + i)
                 .attr("transform", "translate(" + -that.width_per_y_axis * (i - 1) + ",0)");
 
-            focus.select(".g" + i).attr("d", that.data[i - 1]);
-            focus.select(".axis--y" + i).call(d3.axisLeft(y[i-1]));  // draw y axis
+            focus.select(".g" + i).attr("d", data_f);
+            focus.select(".axis--y" + i).call(d3.axisLeft(yf));  // draw y axis
         }
-
 
         /***************************************************************************************
          *                 DRAW THE CONTEXT GRAPH
@@ -134,11 +110,6 @@ export class MyGraphsComponent implements OnInit {
                     return (x)=>fn(x) * that.ratio
                 };
 
-        let context_data: any[] = [
-            d3.line().x(x_range).y(resize(y_range[0])),
-            d3.line().x(x_range).y(resize(y_range[1]))
-        ];
-
         // group with the small graph
         let tempHeight2: number = that.height_focus + that.margin_top * 3;
         let context: any = svg.append("g")
@@ -146,13 +117,16 @@ export class MyGraphsComponent implements OnInit {
             .attr("transform", "translate(" + that.margin_left + "," + tempHeight2 + ")");
 
         for (let i: number = 1; i <= that.graphs.length; i++) {
-            //if(!this.selectedStats[i-1]) continue;        // skip unselected stats
-            // draw small graph
+
+            let yc =  d3.scaleLinear().range([that.height_focus, 0]);
+            yc.domain(d3.extent(that.graphs[i-1], (d:GraphData) => d.v));
+            let yc_range = (d: GraphData) => yc(d.v);
+
             context.append("path")
                 .datum(that.graphs[i-1])
                 .attr("class", "gs" + i)
                 .attr("transform", "translate( 0," + that.height_context * (i - 1) + ")")
-                .attr("d", context_data[i - 1]);
+                .attr("d", d3.line().x(x_range).y(resize(yc_range)));
 
             // draw X axis for small graph
             context.append("g")
@@ -198,7 +172,11 @@ export class MyGraphsComponent implements OnInit {
             focus.select(".axis--x").call(xAxis); // redraw zoomed x axis
             x.domain(t.rescaleX(x2).domain());    // set new range for the x variable
             for (let i = 1; i <= that.graphs.length; i++) {
-                focus.select(".g" + i).attr("d", that.data[i - 1]);   // redraw zoomed graph
+                let yf =  d3.scaleLinear().range([that.height_focus, 0]);
+                yf.domain(d3.extent(that.graphs[i-1], (d:GraphData) => d.v));
+                let yf_range = (d: GraphData) => yf(d.v);
+                let data_f = d3.line().x(x_range).y(yf_range);
+                focus.select(".g" + i).attr("d", data_f);   // redraw zoomed graph
             }
             context.select(".brush").call(brush.move, x.range().map(t.invertX, t));    // resizes the brush in the lower part
 
@@ -217,7 +195,12 @@ export class MyGraphsComponent implements OnInit {
             x.domain(s.map(x2.invert, x2)); // redefine domain of big graph according to the new brush range
             // reload the graph lines
             for (let i: number = 1; i <= that.graphs.length; i++) {
-                focus.select(".g" + i).attr("d", that.data[i - 1]);
+                let yf =  d3.scaleLinear().range([that.height_focus, 0]);
+                yf.domain(d3.extent(that.graphs[i-1], (d:GraphData) => d.v));
+                let yf_range = (d: GraphData) => yf(d.v);
+                let data_f = d3.line().x(x_range).y(yf_range);
+
+                focus.select(".g" + i).attr("d", data_f);
             }
             focus.select(".axis--x").call(xAxis);  // reload the x axis
 

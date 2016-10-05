@@ -7,6 +7,6 @@ import {GraphData} from "./graphData";
 
 export class GraphDataService{
     getData(): GraphData[][]{
-        return [GRAPH2, GRAPH1];
+        return [GRAPH1, GRAPH2];
     }
 }
